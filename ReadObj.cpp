@@ -1,128 +1,130 @@
 #include "ReadObj.h"
-
-//Constructor
-Coordinate::Coordinate(float valuex, float valuey, float valuez) {
-    x = valuex;
-    y = valuey;
-    z = valuez;
-}
-
-float Coordinate::getX() {
-    return x;
-}
-
-float Coordinate::getY() {
-    return y;
-}
-
-float Coordinate::getZ() {
-    return z;
-}
-
-void Coordinate::setX(float value) {
-    x = value;
-}
-
-void Coordinate::setY(float value) {
-    y = value;
-}
-
-void Coordinate::setZ(float value) {
-    z = value;
-}
-
-//Constructor
-Face::Face(vector<int> verts) {
-    for (int i = 0; i < verts.size(); i++) {
-	vertices.push_back(verts[i]);
-    }
-}
-
-//Returns a vector of Coordinates made
-//by reading data in the file
-vector<Coordinate> readVertices(string fileName) {
-    vector<Coordinate> coordVector;
-    ifstream file;
-    //Open the file for reading
-    file.open(fileName);
-    while (!file.eof()) {
-	//as long as we haven't reached the end of the file
-	//get a new line of input
-	string input;
-	getline(file, input);
-	//the line in the obj file starts with 'v' to indicate a vertex
-	//which we will convert to a coordinate and then
-	//push back into the vector "coordVector"
-	if (input[0] == 'v') {
-	    float x, y, z;
-	    istringstream iss(input);
-
-	    //This just eats the 'v' that starts the line
-	    string garbage;
-	    iss >> garbage >> x >> y >> z;
-	    Coordinate coord(x, y - 2.5, z);
-	    coordVector.push_back(coord);
+/**
+Model class functions
+**/
+Model::Model(string objSource) {
+	drawNormals = false;
+	ifstream source;
+	source.open(objSource, ios::in);
+	if (source.is_open()) {
+		cout << "Reading " << objSource << endl;
+		string input;
+		while (!source.eof()) {
+			getline(source, input);
+			char * buffer = new char[input.length()];
+			//actually copy input to buffer:
+			strcpy(buffer, input.c_str());
+			//Loading vertex data
+			if (input.substr(0, 2) == "v ") {
+				vector<double> coord;
+				double x, y, z;
+				sscanf(buffer, "v %lf %lf %lf", &x, &y, &z);
+				coord.push_back(x);
+				coord.push_back(y);
+				coord.push_back(z);
+				modelVertices.push_back(coord);
+			}
+			else if (input.substr(0, 2) == "vn") {
+				vector<double> norm;
+				double x, y, z;
+				sscanf(buffer, "vn %lf %lf %lf", &x, &y, &z);
+				norm.push_back(x);
+				norm.push_back(y);
+				norm.push_back(z);
+				normVectors.push_back(norm);
+			}
+			else if (input.substr(0, 2) == "vt") {
+				vector<double> coord;
+				double x, y;
+				sscanf(buffer, "vt %lf %lf", &x, &y);
+				coord.push_back(x);
+				coord.push_back(y);
+			}
+			else if (input.substr(0, 2) == "f ") {
+				//here we go with the face stuff ohhh boy
+				Face newFace;
+				istringstream stream(input);
+				string faceData;
+				//eat the 'f' and then get our first set of data:
+				stream >> faceData >> faceData;
+				do {
+					//check if there's no texture data, we'll want to handle
+					//it differently if we find a "//"
+					if (faceData.find("//") == string::npos) {
+						char * dataBuffer = new char[faceData.length()];
+						strcpy(dataBuffer, faceData.c_str());
+						int vertexNum = 0, texNum = 0, normNum = 0;
+						sscanf(dataBuffer, "%d/%d/%d", &vertexNum, &texNum, &normNum);
+						newFace.faceVertexNums.push_back(vertexNum - 1);
+						newFace.faceTexNums.push_back(texNum - 1);
+						newFace.faceNormNums.push_back(normNum - 1);
+					}
+					else {
+						char * dataBuffer = new char[faceData.length()];
+						strcpy(dataBuffer, faceData.c_str());
+						int vertexNum = 0, normNum = 0;
+						sscanf(dataBuffer, "%d//%d", &vertexNum, &normNum);
+						newFace.faceVertexNums.push_back(vertexNum - 1);
+						newFace.faceNormNums.push_back(normNum - 1);
+					}
+				} while (stream >> faceData);
+				modelFaces.push_back(newFace);
+			}
+		}
 	}
-    }
-    file.close();
-    return coordVector;
+	else {
+		cout << "Failed to open file" << endl;
+		source.close();
+		exit(1);
+	}
+	source.close();
 }
 
-//Returns a vector of Faces made from
-//the data read in the file
-vector<Face> readFaces(string fileName) {
-    vector<Face> faces;
-    ifstream file;
-    //Open the file for reading
-    file.open(fileName);
-    while (!file.eof()) {
-	string input;
-	getline(file, input);
-	//the line starts with 'f' to signify that it's face data
-	if (input[0] == 'f') {
-	    vector<int> vertices;
-	    istringstream iss(input);
-	    string garbage;
-	    //eat the 'f', then this eats every other integer
-	    //because every other integer is a value for a normal
-	    //which we aren't dealing with in this project
-	    while (iss >> garbage) {
-		int x = -1;
-		iss >> x;
-		//as long as x has been set to a value it means we are reading data
-		//Because we put the vertices in a vector whose indices start at 0,
-		//we want to subtract one from x so that we are using the correct vertex
-		if(x != -1) vertices.push_back(x - 1);
-	    }
-	    Face polygon(vertices);
-	    faces.push_back(polygon);
+void Model::drawNonTextured(int colorArray[3]) {
+	for (int i = 0; i < modelFaces.size(); i++) {
+		glBegin(GL_POLYGON);
+		//Ensure the colors don't go out of bounds
+		int r = colorArray[0] % 255,
+			g = colorArray[1] % 255,
+			b = colorArray[2] % 255;
+		if (r == 0 && colorArray[0] != 0) r = 255;
+		if (g == 0 && colorArray[0] != 0) g = 255;
+		if (b == 0 && colorArray[0] != 0) b = 255;
+		glColor3ub(r, g, b);
+
+		//Normal vector vector
+		vector<double> norm = normVectors[modelFaces[i].faceNormNums[0]];
+		for (int j = 0; j < modelFaces[i].faceVertexNums.size(); j++) {
+			glNormal3f(norm[0], norm[1], norm[2]);
+			//Get the vertex from the vector of vertices stored in the Model
+			//object at the corresponding index given by the indices specified
+			//in the vertex vector in the Face class
+			//Yeah that's not very intuitive sorry, but it's how I think
+			vector<double> verts =
+				modelVertices[modelFaces[i].faceVertexNums[j]];
+			glVertex3f(verts[0], verts[1], verts[2]);
+		}
+		glEnd();
+		
+		//This is just stuff to draw normal vectors to test if my faces have
+		//the correct normals
+		if (drawNormals) {
+			glBegin(GL_LINES);
+			glColor3ub(255, 0, 0);
+			vector<double> verts = 
+				modelVertices[modelFaces[i].faceVertexNums[0]];
+			glVertex3f(verts[0], verts[1], verts[2]);
+			glVertex3f(
+				verts[0] + norm[0], 
+				verts[1] + norm[1], 
+				verts[2] + norm[2]);
+			glEnd();
+		}
 	}
-    }
-    return faces;
 }
 
-//Same as the readFaces function, but because the faces in the obj file
-//use vertex elements starting at 1, this causes the faces to load wrong
-//It's an interesting visual effect so we kept it
-vector<Face> readWrongFaces(string fileName) {
-    vector<Face> faces;
-    ifstream file;
-    file.open(fileName);
-    while (!file.eof()) {
-	string input;
-	getline(file, input);
-	if (input[0] == 'f') {
-	    vector<int> vertices;
-	    istringstream iss(input);
-	    string garbage;
-	    while (iss >> garbage) {
-		int x = -1;
-		iss >> x;
-		if (x != -1) vertices.push_back(x);
-	    }
-	    Face polygon(vertices);
-	    faces.push_back(polygon);
-	}
-    }
-    return faces;
+//This just sets the bool we reference when we check if we want to draw
+//normal vectors on the model
+void Model::doNorms(bool veracity) {
+	drawNormals = veracity;
 }
