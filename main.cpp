@@ -12,9 +12,36 @@
 #include "ReadObj.h"
 using namespace std;
 
-#define PI 3.14159 
-
-Model test("low_poly_skull.obj");
+Model arm_left_lower("arm_left_lower.obj");
+Model arm_left_upper("arm_left_upper.obj");
+Model arm_right_lower("arm_right_lower.obj");
+Model arm_right_upper("arm_right_upper.obj");
+Model skull("final_skull.obj");
+Model foot_left("foot_left.obj");
+Model foot_right("foot_right.obj");
+Model hand_left("hand_left.obj");
+Model hand_right("hand_right.obj");
+Model leg_left_lower("leg_left_lower.obj");
+Model leg_left_upper("leg_left_upper.obj");
+Model leg_right_lower("leg_right_lower.obj");
+Model leg_right_upper("leg_right_upper.obj");
+Model skeleton_body("skeleton_body.obj");
+vector<Model> fullSkeleton = {
+	arm_left_lower,
+	arm_left_upper,
+	arm_right_lower,
+	arm_right_upper,
+	skull,
+	foot_left,
+	foot_right,
+	hand_left,
+	hand_right,
+	leg_left_lower,
+	leg_left_upper,
+	leg_right_lower,
+	leg_right_upper,
+	skeleton_body
+};
 
 //Global vars to store the angle of rotation of the model
 static GLfloat angle = 0;
@@ -22,16 +49,19 @@ static GLfloat angle2 = 0;
 
 static int moving = 0, startx = 0, starty = 0;
 
-//Keeps track of which render scene to draw, and the total number of scenes that can be drawn
-int scene = 0, maxScene = 2;
-
 void init()
 {
 	glClearColor(0.0, 0.0, 0.0, 0.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	glOrtho(-8.0, 8.0, -8.0, 8.0, -8.0, 8.0);
+	glOrtho(
+		-4.0, 
+		4.0, 
+		0.0, 
+		8.0, 
+		-8.0, 
+		8.0);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
@@ -39,16 +69,19 @@ void init()
 	glEnable(GL_DEPTH_TEST);
 	/*
 	Yeah don't forget to try and improve framerate by culling faces
+	ok but my model now uses planes that will disappear (ribs)
 	*/
-	glEnable(GL_CULL_FACE);
+	//glEnable(GL_CULL_FACE);
 }
 
 
-void drawSkull() {
+void drawSkeleton() {
 	int colorArray[] = {
 		255, 255, 255
 	};
-	test.drawNonTextured(colorArray);
+	for (int i = 0; i < fullSkeleton.size(); i++) {
+		fullSkeleton[i].drawNonTextured(colorArray);
+	}
 }
 
 void display()
@@ -60,7 +93,7 @@ void display()
 	glRotatef(angle2, 1.0, 0.0, 0.0);
 	glRotatef(angle, 0.0, 1.0, 0.0);
 
-	drawSkull();
+	drawSkeleton();
 
 	glPopMatrix();
 	glutSwapBuffers();
@@ -72,7 +105,13 @@ void clear()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	glOrtho(-8.0, 8.0, -8.0, 8.0, -8.0, 8.0);
+	glOrtho(
+		-4.0, 
+		4.0, 
+		0.0, 
+		8.0, 
+		-8.0, 
+		8.0);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 }
@@ -95,50 +134,16 @@ static void mouse(int button, int state, int x, int y)
 
 //OpenGL keyboard input
 //	'q':  exit
-//	'r':  reset to starting perspective
-//	't' : cycle through different stair renders
-//	'w', 'a', 's', 'd' : rotate model and print the new angle values
 void keyboard(unsigned char key, int x, int y) {
 #pragma unused(x, y)
 	switch (key) {
 	case 'q':
 		exit(0);
 		break;
-	case 'r':
-		angle = -26;
-		angle2 = 42;
-		display();
-		break;
-	case 'a':
-		angle += 1;
-		cout << angle << " " << angle2 << endl;
-		display();
-		break;
-	case 'd':
-		angle -= 1;
-		cout << angle << " " << angle2 << endl;
-		display();
-		break;
-	case 'w':
-		angle2 -= 1;
-		cout << angle << " " << angle2 << endl;
-		display();
-		break;
-	case 's':
-		angle2 += 1;
-		cout << angle << " " << angle2 << endl;
-		display();
-		break;
-	case 't':
-		if (scene == maxScene) {
-			scene = 0;
-		}
-		else scene++;
-		display();
-		break;
 	default:
 		break;
 	}
+	display();
 }
 
 /* ARGSUSED1 */
@@ -158,18 +163,28 @@ void reshape(int w, int h) {
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	if (w <= h)
-		glOrtho(-8.0, 8.0, -8.0 * (GLfloat)h / (GLfloat)w,
-			8.0 * (GLfloat)h / (GLfloat)w, -8.0, 8.0);
+		glOrtho(
+			-4.0, 
+			4.0, 
+			0.0 * (GLfloat)h / (GLfloat)w,
+			8.0 * (GLfloat)h / (GLfloat)w, 
+			-8.0, 
+			8.0);
 	else
-		glOrtho(-8.0 * (GLfloat)w / (GLfloat)h,
-			8.0 * (GLfloat)w / (GLfloat)h, -8.0, 8.0, -8.0, 8.0);
+		glOrtho(
+			-4.0 * (GLfloat)w / (GLfloat)h,
+			4.0 * (GLfloat)w / (GLfloat)h, 
+			0.0, 
+			8.0, 
+			-8.0, 
+			8.0);
 	glMatrixMode(GL_MODELVIEW);
 }
 
 int main(int argc, char **argv) {
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
-	glutCreateWindow("Penrose Stairs");
+	glutCreateWindow("Spooky Scary Cs Project");
 
 	/* Register assorted GLUT callback routines. */
 	init();
