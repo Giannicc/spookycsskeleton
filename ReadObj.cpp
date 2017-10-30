@@ -8,66 +8,71 @@ Model::Model(string objSource) {
 	source.open(objSource, ios::in);
 	if (source.is_open()) {
 		cout << "Reading " << objSource << endl;
-		string input;
+		string input;	//We put lines gotten from "source" into input
 		while (!source.eof()) {
 			getline(source, input);
-			char * buffer = new char[input.length()];
-			//actually copy input to buffer:
-			strcpy(buffer, input.c_str());
-			//Loading vertex data
-			if (input.substr(0, 2) == "v ") {
-				vector<double> coord;
+			istringstream iss(input);
+			string lineHead;
+			iss >> lineHead;	//We put the strings in input into a string stream
+			if (lineHead == "v") {	//Read 3 doubles for the vertex coords
+				vector<double> coords;
 				double x, y, z;
-				sscanf(buffer, "v %lf %lf %lf", &x, &y, &z);
-				coord.push_back(x);
-				coord.push_back(y);
-				coord.push_back(z);
-				modelVertices.push_back(coord);
+				iss >> x >> y >> z;
+				coords.push_back(x);
+				coords.push_back(y);
+				coords.push_back(z);
+				modelVertices.push_back(coords);
 			}
-			else if (input.substr(0, 2) == "vn") {
+			else if (lineHead == "vn") {	//Reading vertex normal vector
 				vector<double> norm;
 				double x, y, z;
-				sscanf(buffer, "vn %lf %lf %lf", &x, &y, &z);
+				iss >> x >> y >> z;
 				norm.push_back(x);
 				norm.push_back(y);
 				norm.push_back(z);
 				normVectors.push_back(norm);
 			}
-			else if (input.substr(0, 2) == "vt") {
-				vector<double> coord;
+			else if (lineHead == "vt") {	//Texture coordinate!
+				vector<double> coords;
 				double x, y;
-				sscanf(buffer, "vt %lf %lf", &x, &y);
-				coord.push_back(x);
-				coord.push_back(y);
+				iss >> x >> y;
+				coords.push_back(x);
+				coords.push_back(y);
+				textureCoords.push_back(coords);
 			}
-			else if (input.substr(0, 2) == "f ") {
-				//here we go with the face stuff ohhh boy
+			else if (lineHead == "f") {	//Reading face data
 				Face newFace;
-				istringstream stream(input);
 				string faceData;
-				//eat the 'f' and then get our first set of data:
-				stream >> faceData >> faceData;
-				do {
-					//check if there's no texture data, we'll want to handle
-					//it differently if we find a "//"
-					if (faceData.find("//") == string::npos) {
-						char * dataBuffer = new char[faceData.length()];
-						strcpy(dataBuffer, faceData.c_str());
-						int vertexNum = 0, texNum = 0, normNum = 0;
-						sscanf(dataBuffer, "%d/%d/%d", &vertexNum, &texNum, &normNum);
-						newFace.faceVertexNums.push_back(vertexNum - 1);
-						newFace.faceTexNums.push_back(texNum - 1);
-						newFace.faceNormNums.push_back(normNum - 1);
+				while (iss >> faceData) {
+					int pos, index = 0;
+					string vertNum, texNum, normNum;
+					while (faceData[index] != '/') {	//Get the vertex number
+						vertNum += faceData[index];
+						index++;
 					}
-					else {
-						char * dataBuffer = new char[faceData.length()];
-						strcpy(dataBuffer, faceData.c_str());
-						int vertexNum = 0, normNum = 0;
-						sscanf(dataBuffer, "%d//%d", &vertexNum, &normNum);
-						newFace.faceVertexNums.push_back(vertexNum - 1);
-						newFace.faceNormNums.push_back(normNum - 1);
+					if (vertNum != "") {
+						newFace.faceVertexNums.push_back(stoi(vertNum) - 1);
 					}
-				} while (stream >> faceData);
+					else cout << "Error when reading face vertex data" << endl;
+					index++;
+					while (faceData[index] != '/') {	//Get the tex coord num
+						texNum += faceData[index];
+						index++;
+					}
+					if (texNum != "") {
+						newFace.faceTexNums.push_back(stoi(texNum) - 1);
+					}
+					//else cout << "Error when reading face texture data" << endl;
+					index++;
+					while (faceData[index] != '\0') {
+						normNum += faceData[index];
+						index++;
+					}
+					if (normNum != "") {
+						newFace.faceNormNums.push_back(stoi(normNum) - 1);
+					}
+					else cout << "Error when reading face normal data" << endl;
+				}
 				modelFaces.push_back(newFace);
 			}
 		}
